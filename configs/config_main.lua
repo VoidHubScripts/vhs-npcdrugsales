@@ -8,6 +8,8 @@ refuseSale = 25 -- % chance a NPC refuses to buy
 policeAlert = 89 -- % a NPC will call the police after refusing a sale
 policejob = 'police'
 
+blacklistedJobs = { 'police' }
+
 
 
 Sell = {

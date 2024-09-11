@@ -94,6 +94,13 @@ function targetSell(Type, sell)
         end
     end
     local interact = function(entity, distance, coords, name, bone)
+        local jName, jGrade, jLabel = getJob()
+        for _, blacklistedJob in ipairs(blacklistedJobs) do
+            if jName == blacklistedJob then
+                return false
+            end
+        end
+
         if not entity then return false end
         local entityId = (type(entity) == "table" and entity.entity) or entity
         if not entityId then return false end
