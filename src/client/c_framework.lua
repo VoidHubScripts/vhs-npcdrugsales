@@ -1,20 +1,12 @@
 
-function getIdentifier()
-    if Framework == 'esx' then
-        local playerData = ESX.GetPlayerData()
-        if playerData then
-            return playerData.identifier
-        end
-    elseif Framework == 'qbcore' then
-        local playerData = QBCore.Functions.GetPlayerData()
-        return playerData.citizenid
-    end
-end
-
-function ItemLabel(item)
-    local label = lib.callback.await('vhs-framework:itemLabel', false, item)
-    if label then
-        return label
+function getPlayerData()
+    if setupConfig.Framework == 'esx' then
+        return ESX.GetPlayerData()
+    elseif setupConfig.Framework == 'qbcore' then
+        return QBCore.Functions.GetPlayerData()
+    else
+        print("unsupported framework in ")
+        return nil
     end
 end
 
@@ -30,6 +22,7 @@ function getJob(source)
             return playerData.job.name, playerData.job.grade.level, playerData.job.grade.name
         end
     else
+        print("Unsupported framework")
         return 'unemployed', 'unemployed', 0
     end
     return 'unemployed', 'unemployed', 0
@@ -43,46 +36,45 @@ function removeTarget(name)
     end
 end
 
-function targetModel(model, name, options, interact, job, gang, distance)
-    local targetOptions = {}
-    for _, opt in ipairs(options) do
-        table.insert(targetOptions, { name = name, icon = opt.icon, label = opt.label, event = opt.event, items = opt.item, groups = job,
-            canInteract = function(entity, dist, coords, name, bone)
-                local result = type(interact) == "function" and interact(entity, dist, coords, name, bone)
-                if opt.canInteract then
-                    return result and opt.canInteract(entity, dist, coords, name, bone)
-                end
-                return result
-            end,
-            onSelect = function(data)
-                if type(opt.action) == "function" then
-                    opt.action(data)
-                end
-        end })
-    end
+function targetPeds(name, event, icon, label, item, action, interact, job, gang, distance)
     if GetResourceState('ox_target') == 'started' then
-        exports.ox_target:addModel(model, targetOptions)
-    elseif GetResourceState('qb-target') == 'started' then
-        local qbOptions = { options = {}, distance = distance }
-        for _, opt in ipairs(options) do
-            table.insert(qbOptions.options, { event = opt.event, icon = opt.icon, label = opt.label, item = opt.item, job = job, gang = gang,
-                action = function(entity)
-                    if type(opt.action) == "function" then
-                        opt.action(entity)
+        exports.ox_target:addGlobalPed({
+            { name = name, icon = icon, label = label, event = event, distance = distance, items = item, groups = job, 
+                onSelect = function(data)
+                    if action and type(action) == "function" then
+                        action(data) 
                     end
                 end,
-                canInteract = function(entity, dist, data)
-                    local result = type(interact) == "function" and interact(entity, dist, data)
-                    if opt.canInteract then
-                        return result and opt.canInteract(entity, dist, data)
+                canInteract = function(entity, distance, coords, name, bone)
+                    if type(interact) == "function" then
+                        return interact(entity, distance, coords, name, bone)
                     end
-                    return result
+                    return true 
                 end
-            })
-        end
-        exports['qb-target']:AddTargetModel(model, qbOptions)
+            }
+        })
+    elseif GetResourceState('qb-target') == 'started' then
+        exports['qb-target']:AddGlobalPed({
+            options = { 
+              {  event = event,  icon = icon, label = label,  item = item, 
+                action = function(entity)
+                    if action and type(action) == "function" then
+                        action(entity) 
+                    end
+                end,
+                canInteract = function(entity, distance, data) 
+                    if type(interact) == "function" then
+                        return interact(entity, distance, data)
+                    end
+                    return true 
+                end,
+                job = job, 
+              }
+            },
+            distance = 2.5, 
+          })
     else
-        print('Neither ox_target nor qb-target is started.')
+        print('Unsupported framework: ' .. tostring(Framework))
     end
 end
 

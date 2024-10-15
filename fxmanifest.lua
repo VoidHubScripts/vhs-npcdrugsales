@@ -3,7 +3,7 @@ game 'gta5'
 lua54 'yes'
 
 description 'vhs-npcdrugsales'
-version '0.1'
+version '0.2'
 
 client_scripts {
     'configs/config_main.lua',

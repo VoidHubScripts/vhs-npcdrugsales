@@ -1,82 +1,63 @@
--- = [ Inventory Bridge ] = -- 
 
-function addItem(source, item, amount)
-    if Framework == 'esx' then 
-        local Player = ESX.GetPlayerFromId(source)
-        if Player.canCarryItem(item, amount) then 
-            Player.addInventoryItem(item, amount)
-        end 
-    elseif GetResourceState('ox_inventory') == 'started' then
-        local success, response = exports.ox_inventory:AddItem(source, item, amount)
-        if not success then
-            return print(response)
-        end   
-    elseif Framework == 'qbcore' then 
-        local added = exports['qb-inventory']:AddItem(source, item, amount)
-    end 
-end
-
-function removeItem(source, item, amount)
-    if Framework == 'esx' then 
-        local Player = ESX.GetPlayerFromId(source)
-        if Player then        
-            if Player.getInventoryItem(item).count >= amount then
-                Player.removeInventoryItem(item, amount)
-                return true
-            else
-                return false
-            end
-        else 
-            return false
-        end 
-    elseif GetResourceState('ox_inventory') == 'started' then
-        local success = exports.ox_inventory:RemoveItem(source, item, amount)
-    elseif Framework == 'qbcore' then 
-        local Player = QBCore.Functions.GetPlayer(source)
-        if Player then
-            Player.Functions.RemoveItem(item, amount)
-                TriggerClientEvent('inventory:client:ItemBox', source, QBCore.Shared.Items[item], 'remove', amount)
-                return true
-            else
-            return false
-        end 
-    end 
-end
-
-function getInventory(source)
-    local inv = {}
+function getPolice()
+    local policePlayers = {}
     if Framework == 'esx' then
-        local Player = ESX.GetPlayerFromId(source)
-        if Player then
-            local inventory = Player.getInventory()
-            for _, item in pairs(inventory) do
-                if item.name and item.label and item.count then
-                    table.insert(inv, { name = item.name, label = item.label, count = item.count })
-                end
-            end
+        local players = ESX.GetExtendedPlayers('job', policejob)
+        for i = 1, #players do
+            table.insert(policePlayers, players[i].source)  
         end
-    elseif GetResourceState('ox_inventory') == 'started' then
-        local inventory = exports.ox_inventory:GetInventoryItems(source)  
-        for _, item in pairs(inventory) do
-            if item.name and item.label and item.count then
-                table.insert(inv, { name = item.name, label = item.label, count = item.count })
-            end
-        end  
     elseif Framework == 'qbcore' then
-        local Player = QBCore.Functions.GetPlayer(source)
-        if Player then
-            local inventory = exports['qb-inventory']:LoadInventory(source, Player.PlayerData.citizenid)
-            for _, item in pairs(inventory) do
-                if item.name and item.label and item.amount then
-                    table.insert(inv, { name = item.name, label = item.label, count = item.amount })
-                end
+        local players = QBCore.Functions.GetPlayers()
+        for i = 1, #players do
+            local player = QBCore.Functions.GetPlayer(players[i])
+            if player and player.PlayerData.job.name == policejob then
+                table.insert(policePlayers, player.PlayerData.source) 
             end
         end
     end
-    return inv
+    return policePlayers
 end
 
-function getItem(source, item)
+function GetPlayerData(source)
+    if Framework == 'esx' then 
+        return 
+        ESX.GetPlayerFromId(source)
+    elseif Framework == 'qbcore' then 
+        return QBCore.Functions.GetPlayer(source)
+    end 
+end   
+
+function addBlack(source, amount)
+    if Framework == 'esx' then
+        local xPlayer = ESX.GetPlayerFromId(source)
+        if xPlayer then
+            xPlayer.addAccountMoney('black_money', amount, "Drugs Sold")
+        end
+    elseif Framework == 'qbcore' then
+        local xPlayer = QBCore.Functions.GetPlayer(source)
+        if xPlayer then
+            local info = { worth = amount }
+            xPlayer.Functions.AddItem('markedbills', 1, false, info)
+        end
+    else
+        print("Unsupported framework: " .. Framework)
+    end
+end
+
+function getName(source)
+    if Framework == 'esx' then 
+        local xPlayer = ESX.GetPlayerFromId(source)
+        return xPlayer.getName()
+
+    elseif Framework == 'qbcore' then 
+        local player = QBCore.Functions.GetPlayer(source)
+        if player then
+            return player.PlayerData.charinfo.firstname .. " " .. player.PlayerData.charinfo.lastname
+        end
+    end 
+end
+
+function GetInventoryItem(source, item)
     if Framework == 'esx' then
         local Player = ESX.GetPlayerFromId(source)
         if Player then
@@ -100,88 +81,49 @@ function getItem(source, item)
     return nil
 end
 
-function getLabel(item)
+function GetItemLabel(item)
     if Framework == 'esx' then
         return ESX.GetItemLabel(item)
-    elseif GetResourceState('ox_inventory') == 'started' then
-        local Oxitem = exports.ox_inventory:Items(item)
-        return Oxitem.label
     elseif Framework == 'qbcore' then
         if QBCore and QBCore.Shared and QBCore.Shared.Items[item] then
             return QBCore.Shared.Items[item].label
         else
             return item  
         end
+    else
+        print("Unsupported framework.")
+        return item  
     end
 end
 
-lib.callback.register('vhs-framework:itemLabel', function(source, item)
-    return getLabel(item)
-end)
-
--- = [ Moneys Bridge ] = --
-
-function getMoney(source)
-    if Framework == 'esx' then
-        local Player = ESX.GetPlayerFromId(source)
-        if Player then
-            return Player.getMoney()
-        end
-    elseif Framework == 'qbcore' then
-        local Player = QBCore.Functions.GetPlayer(source)
-        if Player then
-            return Player.PlayerData.money.cash
-        end
-    end
-    return 0
-end
-
-function removeMoney(source, amount)
+function RemoveItem(source, item, amount)
     if Framework == 'esx' then 
-        local Player = ESX.GetPlayerFromId(source)
-        if Player then 
-            Player.removeMoney(amount)
+        local xPlayer = ESX.GetPlayerFromId(source)
+        if xPlayer then        
+            if xPlayer.getInventoryItem(item).count >= amount then
+                xPlayer.removeInventoryItem(item, amount)
+                return true
+            else
+                print("Player does not have enough of the item.")
+                return false
+            end
+        else 
+            print("Player not found.")
+            return false
         end 
     elseif Framework == 'qbcore' then 
-        local Player = QBCore.Functions.GetPlayer(source)
-        if Player then 
-            Player.Functions.RemoveMoney('cash', amount)
+        local xPlayer = QBCore.Functions.GetPlayer(source)
+        if xPlayer then
+                xPlayer.Functions.RemoveItem(item, amount)
+                TriggerClientEvent('inventory:client:ItemBox', source, QBCore.Shared.Items[item], 'remove', amount)
+                return true
+            else
+            print("Player not found.")
+            return false
         end 
-    end 
-end 
-
-function societyDeposit(society, amount)
-    if Framework == 'esx' then 
-        TriggerEvent('esx_addonaccount:getSharedAccount', 'society_'..society, function(account)
-            account.addMoney(amount)
-          end)
-    elseif GetResourceState('qbx_core') == 'started' then    
-        exports['Renewed-Banking']:addAccountMoney(society, amount)  
-    elseif Framework == 'qbcore' then 
-        exports['qb-banking']:AddMoney(society, amount, 'Store Payment')
-    end 
-end   
-
-function addMoney(identifier, amount)
-    if Framework == 'esx' then
-        MySQL.Async.execute('UPDATE users SET bank = bank + @amount WHERE identifier = @identifier', { ['@amount'] = amount, ['@identifier'] = identifier })
-    elseif Framework == 'qbcore' then
-        MySQL.Async.execute('UPDATE players SET money = JSON_SET(money, "$.bank", JSON_EXTRACT(money, "$.bank") + @amount) WHERE citizenid = @identifier', { ['@amount'] = amount, ['@identifier'] = identifier })
-    end
-end
-
-
--- = [ Other Bridges ] = -- 
-
-function getName(source)
-    if Framework == 'esx' then 
-        local Player = ESX.GetPlayerFromId(source)
-        return Player.getName()
-    elseif Framework == 'qbcore' then 
-        local Player = QBCore.Functions.GetPlayer(source)
-        if Player then
-            return Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname
-        end
+    else 
+        print("Set your framework!")
+        return false
     end 
 end
 
